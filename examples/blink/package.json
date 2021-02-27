@@ -1,0 +1,13 @@
+{
+  "name": "blink",
+  "version": "1.0.0",
+  "description": "Control internal LED remotely",
+  "main": "blink.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "vrpc": "^2.3.2"
+  }
+}
