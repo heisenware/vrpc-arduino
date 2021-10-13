@@ -1,7 +1,9 @@
 #ifndef VRPC_H
 #define VRPC_H
 
+#ifdef WITH_STL
 #include <ArduinoSTL.h>
+#endif
 #include <map>
 #include <vector>
 #include <ArduinoJson.h>
@@ -12,6 +14,7 @@
 
 namespace vrpc {
 
+  const String compile_date = __DATE__ " " __TIME__;
 
   typedef DynamicJsonDocument Json;
 
@@ -294,16 +297,16 @@ namespace vrpc {
      */
     template <typename T>
     void begin(T& wifiClient, const String& domain = "public.vrpc", const String& token = "", const String& broker = "vrpc.io", const String& username = "") {
-      _domain_agent = domain + "/" + get_mac_address();
+      _domain_agent = domain + "/" + VrpcAgent::get_unique_id();
       _token = token;
       _username = username;
       _broker = broker;
-      _client.begin(broker.c_str(), wifiClient);
+      _client.begin(broker.c_str(), 1883, wifiClient);
       _client.onMessageAdvanced([](MQTTClient* client, char* topic, char* payload, int size) -> void {
         String topicString(topic);
         std::vector<String> tokens = VrpcAgent::tokenize(topicString, '/');
         if (tokens.size() != 5) {
-          Serial.println('ERROR [VRPC] Received message with invalid topic URI');
+          Serial.println('ERROR [VRPC] Received invalid message');
           return;
         }
         String class_name(tokens[2]);
@@ -346,7 +349,7 @@ namespace vrpc {
       Serial.print(_domain_agent);
       Serial.print("\nbroker: ");
       Serial.print(_broker);
-      String clientId = "vrpca" + VrpcAgent::get_mac_address();
+      String clientId = "vrpca" + VrpcAgent::get_unique_id();
       if (_token == "" && _username == "") {
         while (!(_client.connect(clientId.c_str()))) delay(1000);
       } else if (_username != "") {
@@ -384,6 +387,15 @@ namespace vrpc {
 
   private:
 
+    static String get_unique_id () {
+      String id = "ai";
+      for (size_t i = vrpc::compile_date.length() -1; i > 2; --i) {
+        const char x = vrpc::compile_date[i];
+        if (x != ' ' && x != ':') id += x;
+      }
+      return id;
+    }
+
     void publish_agent_info() {
       String topic(_domain_agent + "/__agentInfo__");
       String json = this->create_agent_info_payload(true);
@@ -394,10 +406,9 @@ namespace vrpc {
     }
 
     String create_agent_info_payload(bool isOnline) {
-      auto ip = WiFi.localIP();
-      String json = isOnline ? "{\"status\":\"online\",\"hostname\":\"" : "{\"status\":\"offline\",\"hostname\":\"";
-      json += String(ip[0]) + "." + String(ip[1]) + "." + String(ip[2]) + "." + String(ip[3]) + "\"}";
-      return json;
+      return isOnline
+                 ? "{\"status\":\"online\",\"hostname\":\"arduino-board\"}"
+                 : "{\"status\":\"offline\",\"hostname\":\"arduino-board\"}";
     }
 
     void publish_class_info (const String& class_name) {
@@ -412,22 +423,6 @@ namespace vrpc {
       Serial.println(json);
       _client.publish(topic, json, true, 1);
       Serial.println("[OK]");
-    }
-
-    static String get_mac_address() {
-      byte mac[6];
-      WiFi.macAddress(mac);
-      String macAddress;
-      for (int i = 5; i >= 0; i--) {
-        if (mac[i] < 16) {
-          macAddress += "0";
-        }
-        macAddress += String(mac[i], HEX);
-        if (i > 0) {
-          macAddress += ":";
-        }
-      }
-      return macAddress;
     }
 
     static std::vector<String> tokenize(const String& input, char delim) {

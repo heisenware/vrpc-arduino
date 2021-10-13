@@ -62,6 +62,12 @@ VRPC_GLOBAL_FUNCTION(void, ledOn);
 VRPC_GLOBAL_FUNCTION(void, ledOff);
 ```
 
+> **NOTE**
+> Depending on the board you are using it may be necessary to include parts of
+> the STL as external library. In this case add:
+> `#define WITH_STL 1`
+> before including the VRPC
+
 ## API
 
 ### Function adaptation macros
