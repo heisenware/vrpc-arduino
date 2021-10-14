@@ -47,6 +47,11 @@
     "cinttypes": "cpp",
     "regex": "cpp",
     "utility": "cpp",
-    "typeinfo": "cpp"
+    "typeinfo": "cpp",
+    "valarray": "cpp",
+    "associative_base": "cpp",
+    "list": "cpp",
+    "queue": "cpp",
+    "stack": "cpp"
   }
 }
