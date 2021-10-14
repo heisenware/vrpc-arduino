@@ -288,28 +288,7 @@ class VrpcAgent {
     _username = username;
     _broker = broker;
     _client.begin(broker.c_str(), 1883, wifiClient);
-    _client.onMessageAdvanced(
-        [](MQTTClient* client, char* topic, char* payload, int size) -> void {
-          String topicString(topic);
-          std::vector<String> tokens = VrpcAgent::tokenize(topicString, '/');
-          if (tokens.size() != 5) {
-            Serial.println('ERROR [VRPC] Received invalid message');
-            return;
-          }
-          String class_name(tokens[2]);
-          String instance(tokens[3]);
-          String method(tokens[4]);
-          vrpc::Json j(256);
-          deserializeJson(j, payload, size);
-          j["context"] = instance == "__static__" ? class_name : instance;
-          j["method"] = method;
-          Serial.print("Going to call: ");
-          Serial.println(method);
-          vrpc::Registry::call(j);
-          String res;
-          serializeJson(j, res);
-          client->publish(j["sender"].as<String>(), res);
-        });
+    _client.onMessageAdvanced(on_message);
     String willTopic(_domain_agent + "/__agentInfo__");
     String payload = this->create_agent_info_payload(false);
     _client.setWill(willTopic.c_str(), payload.c_str(), true, 1);
@@ -376,8 +355,33 @@ class VrpcAgent {
   }
 
  private:
+  static void on_message(MQTTClient* client,
+                         char* topic,
+                         char* payload,
+                         int size) {
+    String topicString(topic);
+    std::vector<String> tokens = VrpcAgent::tokenize(topicString, '/');
+    if (tokens.size() != 5) {
+      Serial.println("ERROR [VRPC] Received invalid message");
+      return;
+    }
+    String class_name(tokens[2]);
+    String instance(tokens[3]);
+    String method(tokens[4]);
+    vrpc::Json j(256);
+    deserializeJson(j, payload, size);
+    j["context"] = instance == "__static__" ? class_name : instance;
+    j["method"] = method;
+    Serial.print("Going to call: ");
+    Serial.println(method);
+    vrpc::Registry::call(j);
+    String res;
+    serializeJson(j, res);
+    client->publish(j["sender"].as<String>(), res);
+  }
+
   static String get_unique_id() {
-    String id = "ai";
+    String id = "ar-";
     for (size_t i = vrpc::compile_date.length() - 1; i > 2; --i) {
       const char x = vrpc::compile_date[i];
       if (x != ' ' && x != ':')
