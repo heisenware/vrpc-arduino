@@ -5,6 +5,7 @@
 #include <ArduinoSTL.h>
 #endif
 #include <ArduinoJson.h>
+#include <ArduinoUniqueID.h>
 #include <MQTT.h>
 #include <map>
 #include <vector>
@@ -99,7 +100,7 @@ struct unpack_impl<N, Ret, Arg> {
 template <size_t N, typename Ret>
 struct unpack_impl<N, Ret> {
   template <typename R = Ret>
-  static void unpack(const Json& j, R& t) {
+  static void unpack(const Json&, R&) {
     // Do nothing
   }
 };
@@ -187,7 +188,8 @@ class Registry {
   static void call(Json& json) {
     String context = json["context"].as<String>();
     String function_name = json["method"].as<String>();
-    JsonVariant args = json["data"];
+    // TODO implement support for overloading
+    // JsonVariant args = json["data"];
     // function_name += vrpc::get_signature(args);
     auto it_t = init<Registry>()._function_registry.find(context);
     if (it_t != init<Registry>()._function_registry.end()) {
@@ -318,11 +320,11 @@ class VrpcAgent {
       while (!(_client.connect(clientId.c_str())))
         delay(1000);
     } else if (_username != "") {
-      while (!(_client.connect(clientId.c_str())), _username.c_str(),
+      while (!_client.connect(clientId.c_str()), _username.c_str(),
              _token.c_str())
         delay(1000);
     } else {
-      while (!(_client.connect(clientId.c_str())), "__token__", _token.c_str())
+      while (!_client.connect(clientId.c_str(), "__token__", _token.c_str()))
         delay(1000);
     }
     Serial.println("\n[OK]\n");
@@ -381,11 +383,13 @@ class VrpcAgent {
   }
 
   static String get_unique_id() {
-    String id = "ar-";
-    for (size_t i = vrpc::compile_date.length() - 1; i > 2; --i) {
-      const char x = vrpc::compile_date[i];
-      if (x != ' ' && x != ':')
-        id += x;
+    UniqueIDdump(Serial);
+    String id = "ar";
+    for (size_t i = 0; i < 8; i++) {
+      if (UniqueID8[i] < 0x10) {
+        id += "0";
+      }
+      id += String(UniqueID8[i], HEX);
     }
     return id;
   }
