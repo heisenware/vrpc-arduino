@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Linux",
-            "compilerPath": "/usr/bin/clang",
+            "compilerPath": "/usr/bin/gcc",
             "compilerArgs": [],
             "intelliSenseMode": "gcc-x64",
             "includePath": [

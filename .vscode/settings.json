@@ -52,6 +52,7 @@
     "associative_base": "cpp",
     "list": "cpp",
     "queue": "cpp",
-    "stack": "cpp"
+    "stack": "cpp",
+    "complex": "cpp"
   }
 }
