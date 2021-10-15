@@ -21,11 +21,10 @@ GPRS gprs;
 GSM gsmAccess;
 VrpcAgent agent;
 
-// last-value-cached of temperature in degree celsius
-float _temperature;
+unsigned long lastMillis = 0;
 
-// loop cycle count
-unsigned int CYCLE = 0;
+// last-value-cached of temperature in degree celsius
+float temperature;
 
 void ledOn() {
   digitalWrite(LED_BUILTIN, HIGH);
@@ -36,7 +35,7 @@ void ledOff() {
 }
 
 float getTemperature() {
-  return _temperature;
+  return temperature;
 }
 
 void connect() {
@@ -61,17 +60,14 @@ void loop() {
   agent.loop();
   if (!agent.connected()) {
     connect();
-    return;
   }
   // read temperature every second
-  if (CYCLE % 100 == 0) {
+  if (millis() - lastMillis > 1000) {
+    lastMillis = millis();
     sensors.requestTemperatures();
-    _temperature = sensors.getTempCByIndex(0);
-    Serial.println(_temperature);
+    temperature = sensors.getTempCByIndex(0);
+    Serial.println(temperature);
   }
-  // loop with 100 Hz
-  CYCLE++;
-  delay(10);
 }
 
 VRPC_GLOBAL_FUNCTION(void, ledOn);

@@ -1,0 +1,84 @@
+#include <LiquidCrystal.h>
+#include <SPI.h>
+#include <WiFiNINA.h>
+#include <vrpc.h>
+
+const char ssid[] = "<WLAN-SSID>";
+const char pass[] = "<WLAN-PASSWORD>";
+
+// initialize the library by associating any needed LCD interface pin
+// with the arduino pin number it is connected to
+LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
+
+WiFiClient wifi;
+VrpcAgent agent;
+
+void ledOn() {
+  digitalWrite(LED_BUILTIN, HIGH);
+}
+
+void ledOff() {
+  digitalWrite(LED_BUILTIN, LOW);
+}
+
+void setText(String data, int row = 0) {
+  clearRow(row);
+  lcd.print(data);
+}
+
+void setNumber(float data, int row = 0) {
+  clearRow(row);
+  lcd.print(String(data, 2));
+}
+
+void clearRow(int row) {
+  if (row == 0) {
+    lcd.setCursor(0, 0);
+    lcd.print("                ");
+    lcd.setCursor(0, 0);
+  } else {
+    lcd.setCursor(0, 1);
+    lcd.print("                ");
+    lcd.setCursor(0, 1);
+  }
+}
+
+void connect() {
+  lcd.setCursor(0, 1);
+  lcd.print("Connect WiFi ");
+  while (WiFi.status() != WL_CONNECTED)
+    delay(1000);
+  lcd.print("OK");
+  delay(1000);
+  lcd.setCursor(0, 1);
+  lcd.print("Connect VRPC ");
+  agent.connect();
+  lcd.print("OK");
+  delay(1000);
+  lcd.clear();
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  lcd.begin(16, 2);
+  lcd.print("Heisenware GmbH");
+
+  WiFi.begin(ssid, pass);
+  agent.begin(wifi);
+
+  connect();
+}
+
+void loop() {
+  agent.loop();
+  if (!agent.connected())
+    connect();
+}
+
+VRPC_GLOBAL_FUNCTION(void, ledOn);
+VRPC_GLOBAL_FUNCTION(void, ledOff);
+VRPC_GLOBAL_FUNCTION(int, analogRead, uint8_t);
+VRPC_GLOBAL_FUNCTION(void, setText, String, int);
+VRPC_GLOBAL_FUNCTION(void, setNumber, float, int);
