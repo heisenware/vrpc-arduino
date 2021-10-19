@@ -26,18 +26,6 @@ unsigned long lastMillis = 0;
 // last-value-cached of temperature in degree celsius
 float temperature;
 
-void ledOn() {
-  digitalWrite(LED_BUILTIN, HIGH);
-}
-
-void ledOff() {
-  digitalWrite(LED_BUILTIN, LOW);
-}
-
-float getTemperature() {
-  return temperature;
-}
-
 void connect() {
   Serial.print("Connecting GSM...");
   while (gsmAccess.begin(PINNUMBER) != GSM_READY ||
@@ -45,7 +33,11 @@ void connect() {
     delay(1000);
   }
   Serial.println("[OK]");
+  digitalWrite(LED_BUILTIN, HIGH);
+  Serial.print("Connecting VRPC...");
   agent.connect();
+  Serial.println("[OK]");
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 void setup() {
@@ -60,17 +52,21 @@ void loop() {
   agent.loop();
   if (!agent.connected()) {
     connect();
+    return;
   }
   // read temperature every second
-  if (millis() - lastMillis > 1000) {
+  if (millis() - lastMillis > 2000) {
+    digitalWrite(LED_BUILTIN, HIGH);
     lastMillis = millis();
     sensors.requestTemperatures();
     temperature = sensors.getTempCByIndex(0);
     Serial.println(temperature);
+    digitalWrite(LED_BUILTIN, LOW);
   }
 }
 
-VRPC_GLOBAL_FUNCTION(void, ledOn);
-VRPC_GLOBAL_FUNCTION(void, ledOff);
+float getTemperature() {
+  return temperature;
+}
+
 VRPC_GLOBAL_FUNCTION(float, getTemperature);
-VRPC_GLOBAL_FUNCTION(int, analogRead, uint8_t);
