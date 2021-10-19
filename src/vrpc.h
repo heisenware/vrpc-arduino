@@ -19,6 +19,8 @@ const String compile_date = __DATE__ " " __TIME__;
 
 typedef DynamicJsonDocument Json;
 
+typedef std::vector<Json> Queue;
+
 // Singleton helper
 template <typename T>
 inline T& init() {
@@ -290,6 +292,7 @@ class VrpcAgent {
     _username = username;
     _broker = broker;
     _client.begin(broker.c_str(), 1883, wifiClient);
+    _client.setKeepAlive(0);
     _client.onMessageAdvanced(on_message);
     String willTopic(_domain_agent + "/__agentInfo__");
     String payload = this->create_agent_info_payload(false);
@@ -347,6 +350,12 @@ class VrpcAgent {
    */
   void loop() {
     _client.loop();
+    for (const auto& j : vrpc::init<vrpc::Queue>()) {
+      String res;
+      serializeJson(j, res);
+      _client.publish(j["sender"].as<String>(), res);
+    }
+    vrpc::init<vrpc::Queue>().clear();
     auto lastError = _client.lastError();
     if (lastError != LWMQTT_SUCCESS) {
       Serial.print("ERROR [VRPC] Mqtt transport failed because: ");
@@ -377,9 +386,8 @@ class VrpcAgent {
     Serial.print("Going to call: ");
     Serial.println(method);
     vrpc::Registry::call(j);
-    String res;
-    serializeJson(j, res);
-    client->publish(j["sender"].as<String>(), res);
+    // push answer to queue to avoid potential deadlocks (mqtt library advice)
+    vrpc::init<vrpc::Queue>().push_back(j);
   }
 
   static String get_unique_id() {
