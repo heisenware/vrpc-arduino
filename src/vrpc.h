@@ -292,7 +292,8 @@ class VrpcAgent {
     _username = username;
     _broker = broker;
     _client.begin(broker.c_str(), 1883, wifiClient);
-    _client.setKeepAlive(0);
+    _client.setKeepAlive(120);
+    _client.setTimeout(8000);
     _client.onMessageAdvanced(on_message);
     String willTopic(_domain_agent + "/__agentInfo__");
     String payload = this->create_agent_info_payload(false);
