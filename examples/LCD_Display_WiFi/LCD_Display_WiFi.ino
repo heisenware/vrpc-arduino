@@ -13,22 +13,28 @@ LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
 WiFiClient wifi;
 VrpcAgent agent;
 
-void ledOn() {
-  digitalWrite(LED_BUILTIN, HIGH);
-}
+// last-values-cached
+String lvc_text[2];
+float lvc_number[2];
 
-void ledOff() {
-  digitalWrite(LED_BUILTIN, LOW);
-}
-
-void setText(String data, int row = 0) {
+void setText(String text, int row = 0) {
   clearRow(row);
-  lcd.print(data);
+  lcd.print(text);
+  lvc_text[row > 0 ? 1 : 0] = text;
 }
 
-void setNumber(float data, int row = 0) {
+String getText(int row = 0) {
+  return lvc_text[row > 0 ? 1 : 0];
+}
+
+void setNumber(float number, int row = 0) {
   clearRow(row);
-  lcd.print(String(data, 2));
+  lcd.print(String(number, 2));
+  lvc_number[row > 0 ? 1 : 0] = number;
+}
+
+float getNumber(int row = 0) {
+  return lvc_number[row > 0 ? 1 : 0];
 }
 
 void clearRow(int row) {
@@ -45,17 +51,14 @@ void clearRow(int row) {
 
 void connect() {
   lcd.setCursor(0, 1);
-  lcd.print("Connect WiFi ");
+  lcd.print("Connect WiFi... ");
   while (WiFi.status() != WL_CONNECTED)
     delay(1000);
   lcd.print("OK");
   delay(1000);
   lcd.setCursor(0, 1);
-  lcd.print("Connect VRPC ");
+  lcd.print("Connect VRPC... ");
   agent.connect();
-  lcd.print("OK");
-  delay(1000);
-  lcd.clear();
 }
 
 void setup() {
@@ -73,12 +76,14 @@ void setup() {
 
 void loop() {
   agent.loop();
-  if (!agent.connected())
+  if (!agent.connected()) {
     connect();
+    // restore text of second row
+    setText(lvc_text[1], 1);
+  }
 }
 
-VRPC_GLOBAL_FUNCTION(void, ledOn);
-VRPC_GLOBAL_FUNCTION(void, ledOff);
-VRPC_GLOBAL_FUNCTION(int, analogRead, uint8_t);
 VRPC_GLOBAL_FUNCTION(void, setText, String, int);
 VRPC_GLOBAL_FUNCTION(void, setNumber, float, int);
+VRPC_GLOBAL_FUNCTION(String, getText, int);
+VRPC_GLOBAL_FUNCTION(float, getNumber, int);

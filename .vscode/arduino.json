@@ -2,5 +2,5 @@
     "board": "arduino:megaavr:uno2018",
     "configuration": "mode=on",
     "port": "/dev/ttyACM1",
-    "sketch": "examples/blink/blink.ino"
+    "sketch": "examples/LCD_Display_WiFi/LCD_Display_WiFi.ino"
 }
