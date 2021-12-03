@@ -81,10 +81,8 @@ template <size_t N, typename Ret, typename Arg, typename... Args>
 struct unpack_impl<N, Ret, Arg, Args...> {
   template <typename A = Arg, typename R = Ret>
   static void unpack(const Json& j, R& t) {
-    // length 4 for better assembly alignment
-    constexpr const char key[] = {'_', N + 49, '\0', '\0'};
     typedef typename notstd::decay<A>::type dA;
-    notstd::get<N>(t) = j["data"][key].as<dA>();
+    notstd::get<N>(t) = j["a"][N].as<dA>();
     unpack_impl<N + 1, Ret, Args...>::unpack(j, t);
   }
 };
@@ -93,9 +91,8 @@ template <size_t N, typename Ret, typename Arg>
 struct unpack_impl<N, Ret, Arg> {
   template <typename A = Arg, typename R = Ret>
   static void unpack(const Json& j, R& t) {
-    constexpr const char key[] = {'_', N + 49, '\0', '\0'};
     typedef typename notstd::decay<A>::type dA;
-    notstd::get<N>(t) = j["data"][key].as<dA>();
+    notstd::get<N>(t) = j["a"][N].as<dA>();
   }
 };
 
@@ -139,7 +136,7 @@ class GlobalFunction : public AbstractFunction {
   virtual ~GlobalFunction() = default;
 
   virtual void do_call_function(Json& j) {
-    j["data"]["r"] = call<R>(_f, unpack<Args...>(j));
+    j["r"] = call<R>(_f, unpack<Args...>(j));
   }
 };
 
@@ -154,7 +151,7 @@ class GlobalFunction<void, Args...> : public AbstractFunction {
 
   virtual void do_call_function(Json& j) {
     call<void>(_f, unpack<Args...>(j));
-    j["data"]["r"] = nullptr;
+    j["r"] = nullptr;
   }
 };
 
@@ -178,8 +175,8 @@ class Registry {
     if (err) {
       Serial.print(F("ERROR [VRPC] JSON parsing failed because: "));
       Serial.println(err.c_str());
-      return String("{\"data\": {\"e\": \"JSON parsing failed because: ") +
-             String(err.c_str()) + String("\"}}");
+      return String("{\"e\": \"JSON parsing failed because: ") +
+             String(err.c_str()) + String("\"}");
     }
     Registry::call(json);
     String res;
@@ -188,8 +185,8 @@ class Registry {
   }
 
   static void call(Json& json) {
-    String context = json["context"].as<String>();
-    String function_name = json["method"].as<String>();
+    String context = json["c"].as<String>();
+    String function_name = json["f"].as<String>();
     // TODO implement support for overloading
     // JsonVariant args = json["data"];
     // function_name += vrpc::get_signature(args);
@@ -201,12 +198,12 @@ class Registry {
       } else {
         Serial.print("ERROR [VRPC] Could not find function: ");
         Serial.println(function_name);
-        json["data"]["e"] = "Could not find function: " + function_name;
+        json["e"] = "Could not find function: " + function_name;
       }
     } else {
       Serial.print("ERROR [VRPC] Could not find context: ");
       Serial.println(context);
-      json["data"]["e"] = "Could not find context: " + context;
+      json["e"] = "Could not find context: " + context;
     }
   }
 
@@ -314,12 +311,12 @@ class VrpcAgent {
    * to see the connectivity progress.
    */
   void connect() {
-    Serial.print("\nConnecting to MQTT broker...");
+    Serial.print("\nConnecting to message broker...");
     Serial.print("\ndomain/agent: ");
     Serial.print(_domain_agent);
     Serial.print("\nbroker: ");
     Serial.print(_broker);
-    String clientId = "vrpca" + VrpcAgent::get_unique_id();
+    String clientId = "va3" + VrpcAgent::get_unique_id();
     if (_token == "" && _username == "") {
       while (!(_client.connect(clientId.c_str())))
         delay(1000);
@@ -354,7 +351,7 @@ class VrpcAgent {
     for (const auto& j : vrpc::init<vrpc::Queue>()) {
       String res;
       serializeJson(j, res);
-      _client.publish(j["sender"].as<String>(), res);
+      _client.publish(j["s"].as<String>(), res);
     }
     vrpc::init<vrpc::Queue>().clear();
     auto lastError = _client.lastError();
@@ -382,8 +379,8 @@ class VrpcAgent {
     String method(tokens[4]);
     vrpc::Json j(256);
     deserializeJson(j, payload, size);
-    j["context"] = instance == "__static__" ? class_name : instance;
-    j["method"] = method;
+    j["c"] = instance == "__static__" ? class_name : instance;
+    j["f"] = method;
     Serial.print("Going to call: ");
     Serial.println(method);
     vrpc::Registry::call(j);
