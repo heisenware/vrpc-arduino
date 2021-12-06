@@ -4,14 +4,7 @@
 
 - [ArduinoJSON](https://arduinojson.org/?utm_source=meta&utm_medium=library.properties) by Benoit Blanchon
 - [MQTT](https://github.com/256dpi/arduino-mqtt) by Joël Gähwiler
-
-> **NOTE**
-> Depending on the board you are using it may be necessary to include parts of
-> the STL as external library. In this case add:
-> `#define WITH_STL 1`
-> before including the VRPC and install:
->
-> [ArduinoSTL](https://github.com/mike-matera/ArduinoSTL) by Mike Matera
+- [ArduinoUniqueId](https://github.com/ricaun/ArduinoUniqueID) by Luiz Henrique Cassettari
 
 ## Function adaptation macros
 
