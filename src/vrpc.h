@@ -1,15 +1,20 @@
 #ifndef VRPC_H
 #define VRPC_H
 
-#ifdef WITH_STL
+#include "notstd.hpp"
+
+#ifdef ARDUINO_ARCH_MEGAAVR
 #include <ArduinoSTL.h>
 #endif
-#include <ArduinoJson.h>
+
+#ifndef ARDUINO_ARCH_MEGAAVR
 #include <ArduinoUniqueID.h>
+#endif
+
+#include <ArduinoJson.h>
 #include <MQTT.h>
 #include <map>
 #include <vector>
-#include "notstd.hpp"
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
 
@@ -289,7 +294,7 @@ class VrpcAgent {
     _username = username;
     _broker = broker;
     _client.begin(broker.c_str(), 1883, wifiClient);
-    _client.setKeepAlive(120);
+    _client.setKeepAlive(30);
     _client.setTimeout(8000);
     _client.onMessageAdvanced(on_message);
     String willTopic(_domain_agent + "/__agentInfo__");
@@ -389,6 +394,15 @@ class VrpcAgent {
   }
 
   static String get_unique_id() {
+    #ifdef ARDUINO_ARCH_MEGAAVR
+    String id = "ar-";
+    for (size_t i = vrpc::compile_date.length() - 1; i > 2; --i) {
+      const char x = vrpc::compile_date[i];
+      if (x != ' ' && x != ':')
+        id += x;
+    }
+    return id;
+    #elif
     UniqueIDdump(Serial);
     String id = "ar";
     for (size_t i = 0; i < 8; i++) {
@@ -398,6 +412,7 @@ class VrpcAgent {
       id += String(UniqueID8[i], HEX);
     }
     return id;
+    #endif
   }
 
   void publish_agent_info() {
