@@ -55,6 +55,7 @@
     "stack": "cpp",
     "complex": "cpp",
     "ios": "cpp",
-    "string": "cpp"
+    "string": "cpp",
+    "map": "cpp"
   }
 }
