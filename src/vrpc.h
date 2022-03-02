@@ -12,7 +12,7 @@
 #endif
 
 #include <ArduinoJson.h>
-#include <MQTT.h>
+#include <PubSubClient.h>
 #include <map>
 #include <vector>
 
@@ -20,11 +20,11 @@
 
 namespace vrpc {
 
+PubSubClient client;
+
 const String compile_date = __DATE__ " " __TIME__;
 
 typedef DynamicJsonDocument Json;
-
-typedef std::vector<Json> Queue;
 
 // Singleton helper
 template <typename T>
@@ -254,11 +254,11 @@ struct RegisterGlobalFunction {
  *
  */
 class VrpcAgent {
-  MQTTClient _client;
   String _domain_agent;
   String _token;
   String _username;
   String _broker;
+  long _lastReconnect = 0;
 
  public:
   /**
@@ -267,13 +267,15 @@ class VrpcAgent {
    * @param maxBytesPerMessage [optional, default: `1024`] Specifies the maximum
    * size a single MQTT message may have
    */
-  VrpcAgent(int maxBytesPerMessage = 1024) : _client(maxBytesPerMessage) {}
+  VrpcAgent(int maxBytesPerMessage = 1024) {
+    vrpc::client.setBufferSize(maxBytesPerMessage);
+  }
 
   /**
    * @brief Initializes the object using a client class for network transport
    *
    * @tparam T Type of the client class
-   * @param wifiClient A client class following the interface as described
+   * @param netClient A client class following the interface as described
    * [here](https://www.arduino.cc/en/Reference/ClientConstructor)
    * @param domain [optional, default: `"public.vrpc"`] The domain under which
    * the agent-provided code is reachable
@@ -284,8 +286,8 @@ class VrpcAgent {
    * broker)
    */
   template <typename T>
-  void begin(T& wifiClient,
-             const String& domain = "public.vrpc",
+  void begin(T& netClient,
+             const String& domain = "vrpc",
              const String& token = "",
              const String& broker = "vrpc.io",
              const String& username = "") {
@@ -293,13 +295,10 @@ class VrpcAgent {
     _token = token;
     _username = username;
     _broker = broker;
-    _client.begin(broker.c_str(), 1883, wifiClient);
-    _client.setKeepAlive(30);
-    _client.setTimeout(8000);
-    _client.onMessageAdvanced(on_message);
-    String willTopic(_domain_agent + "/__agentInfo__");
-    String payload = this->create_agent_info_payload(false);
-    _client.setWill(willTopic.c_str(), payload.c_str(), true, 1);
+    vrpc::client.setClient(netClient);
+    vrpc::client.setServer(_broker.c_str(), 1883);
+    vrpc::client.setKeepAlive(15);
+    vrpc::client.setCallback(on_message);
   }
 
   /**
@@ -307,7 +306,7 @@ class VrpcAgent {
    *
    * @return true when connected, false otherwise
    */
-  bool connected() { return _client.connected(); }
+  bool connected() { return vrpc::client.connected(); }
 
   /**
    * @brief Connect the agent to the broker.
@@ -315,35 +314,42 @@ class VrpcAgent {
    * The function will try to connect forever. Inspect the serial monitor
    * to see the connectivity progress.
    */
-  void connect() {
-    Serial.print("\nConnecting to message broker...");
-    Serial.print("\ndomain/agent: ");
-    Serial.print(_domain_agent);
-    Serial.print("\nbroker: ");
-    Serial.print(_broker);
+  bool connect() {
+    Serial.println("\nConnecting to message broker...");
+    Serial.print("domain/agent: ");
+    Serial.println(_domain_agent);
+    Serial.print("broker: ");
+    Serial.println(_broker);
     String clientId = "va3" + VrpcAgent::get_unique_id();
+    String willTopic(_domain_agent + "/__agentInfo__");
+    String willMessage = this->create_agent_info_payload(false);
+    Serial.print("clientId: ");
+    Serial.println(clientId);
+    bool connected = false;
     if (_token == "" && _username == "") {
-      while (!(_client.connect(clientId.c_str())))
-        delay(1000);
-    } else if (_username != "") {
-      while (!_client.connect(clientId.c_str()), _username.c_str(),
-             _token.c_str())
-        delay(1000);
+      connected = vrpc::client.connect(clientId.c_str(), willTopic.c_str(), 1, true,
+                      willMessage.c_str());
     } else {
-      while (!_client.connect(clientId.c_str(), "__token__", _token.c_str()))
-        delay(1000);
+      connected = vrpc::client.connect(clientId.c_str(), _username.c_str(), _token.c_str(),
+                      willTopic.c_str(), 1, true, willMessage.c_str());
     }
-    Serial.println("\n[OK]\n");
+    // finish here if we could not connect
+    if (!connected) {
+      return false;
+    }
+    // otherwise provide info messages
+    Serial.println("[OK]");
     publish_agent_info();
     const auto& classes = vrpc::Registry::get_classes();
     for (const auto& class_name : classes) {
       publish_class_info(class_name);
       const auto& functions = vrpc::Registry::get_static_functions(class_name);
       for (const auto& func : functions) {
-        _client.subscribe(_domain_agent + "/" + class_name + "/__static__/" +
-                          func);
+        String topic(_domain_agent + "/" + class_name + "/__static__/" + func);
+        vrpc::client.subscribe(topic.c_str());
       }
     }
+    return vrpc::client.connected();
   }
 
   /**
@@ -352,27 +358,54 @@ class VrpcAgent {
    * **IMPORTANT**: This function should be called in every `loop`
    */
   void loop() {
-    _client.loop();
-    for (const auto& j : vrpc::init<vrpc::Queue>()) {
-      String res;
-      serializeJson(j, res);
-      _client.publish(j["s"].as<String>(), res);
+    if (!vrpc::client.connected()) {
+      long now = millis();
+      if (now - _lastReconnect > 5000) {
+        _lastReconnect = now;
+        Serial.print("not connected, because: ");
+        Serial.println(get_state());
+        if (connect()) {
+          _lastReconnect = 0;
+        }
+      }
+    } else {
+      vrpc::client.loop();
     }
-    vrpc::init<vrpc::Queue>().clear();
-    auto lastError = _client.lastError();
-    if (lastError != LWMQTT_SUCCESS) {
-      Serial.print("ERROR [VRPC] Mqtt transport failed because: ");
-      Serial.println(lastError);
-      delay(2000);
-    }
-    delay(10);
   }
 
  private:
-  static void on_message(MQTTClient* client,
-                         char* topic,
-                         char* payload,
-                         int size) {
+  String get_state() {
+    switch (vrpc::client.state()) {
+      case -4:
+        return "no keepalive response";
+
+      case -3:
+        return "network connection was broken";
+
+      case -2:
+        return "network connection failed";
+
+      case -1:
+        return "disconnected cleanly";
+
+      case 1:
+        return "mqtt version mismatch";
+
+      case 2:
+        return "server rejected client identifier";
+
+      case 3:
+        return "server was unable to accept the connection";
+
+      case 4:
+        return "username/password were rejected";
+
+      case 5:
+        return "client was not authorized to connect";
+    }
+  }
+
+  static void on_message(char* topic, byte* payload, unsigned int size) {
     String topicString(topic);
     std::vector<String> tokens = VrpcAgent::tokenize(topicString, '/');
     if (tokens.size() != 5) {
@@ -382,19 +415,24 @@ class VrpcAgent {
     String class_name(tokens[2]);
     String instance(tokens[3]);
     String method(tokens[4]);
-    vrpc::Json j(256);
+    vrpc::Json j(1024);
     deserializeJson(j, payload, size);
     j["c"] = instance == "__static__" ? class_name : instance;
     j["f"] = method;
+    const String sender = j["s"];
     Serial.print("Going to call: ");
     Serial.println(method);
     vrpc::Registry::call(j);
-    // push answer to queue to avoid potential deadlocks (mqtt library advice)
-    vrpc::init<vrpc::Queue>().push_back(j);
+    j.remove("s");
+    j.remove("c");
+    j.remove("f");
+    String res;
+    serializeJson(j, res);
+    vrpc::client.publish(sender.c_str(), res.c_str());
   }
 
   static String get_unique_id() {
-    #ifdef ARDUINO_ARCH_MEGAAVR
+#ifdef ARDUINO_ARCH_MEGAAVR
     String id = "ar-";
     for (size_t i = vrpc::compile_date.length() - 1; i > 2; --i) {
       const char x = vrpc::compile_date[i];
@@ -402,8 +440,7 @@ class VrpcAgent {
         id += x;
     }
     return id;
-    #elif
-    UniqueIDdump(Serial);
+#else
     String id = "ar";
     for (size_t i = 0; i < 8; i++) {
       if (UniqueID8[i] < 0x10) {
@@ -412,16 +449,15 @@ class VrpcAgent {
       id += String(UniqueID8[i], HEX);
     }
     return id;
-    #endif
+#endif
   }
 
   void publish_agent_info() {
     String topic(_domain_agent + "/__agentInfo__");
     String json = this->create_agent_info_payload(true);
-    Serial.print("Sending AgentInfo...");
+    Serial.println("Sending AgentInfo...");
     Serial.println(json);
-    _client.publish(topic, json, true, 1);
-    Serial.println("[OK]");
+    vrpc::client.publish(topic.c_str(), json.c_str(), true);
   }
 
   String create_agent_info_payload(bool isOnline) {
@@ -439,10 +475,9 @@ class VrpcAgent {
     json[json.length() - 1] = ']';
     json += "}";
     const String topic(_domain_agent + "/" + class_name + "/__classInfo__");
-    Serial.print("Sending ClassInfo...");
+    Serial.println("Sending ClassInfo...");
     Serial.println(json);
-    _client.publish(topic, json, true, 1);
-    Serial.println("[OK]");
+    vrpc::client.publish(topic.c_str(), json.c_str(), true);
   }
 
   static std::vector<String> tokenize(const String& input, char delim) {
@@ -459,7 +494,8 @@ class VrpcAgent {
   }
 };
 
-/*----------------------------- Macro utility --------------------------------*/
+/*----------------------------- Macro utility
+ * --------------------------------*/
 
 #define CAT(A, B) A##B
 #define SELECT(NAME, NUM) CAT(_##NAME##_, NUM)
