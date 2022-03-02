@@ -54,7 +54,7 @@ void loop() {
     connect();
     return;
   }
-  // read temperature every second
+  // read temperature every two seconds
   if (millis() - lastMillis > 2000) {
     digitalWrite(LED_BUILTIN, HIGH);
     lastMillis = millis();
