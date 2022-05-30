@@ -1,6 +1,5 @@
 {
-    "board": "arduino:megaavr:uno2018",
-    "configuration": "mode=on",
+    "board": "arduino:samd:mkrgsm1400",
     "port": "/dev/ttyACM1",
     "sketch": "examples/LCD_Display_WiFi/LCD_Display_WiFi.ino"
 }

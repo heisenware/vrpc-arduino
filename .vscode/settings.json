@@ -56,6 +56,9 @@
     "complex": "cpp",
     "ios": "cpp",
     "string": "cpp",
-    "map": "cpp"
+    "map": "cpp",
+    "iterator": "cpp",
+    "serstream": "cpp",
+    "*.ipp": "cpp"
   }
 }

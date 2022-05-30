@@ -2,7 +2,7 @@ const { VrpcRemote } = require('vrpc')
 
 const vrpcRemote = new VrpcRemote({
   agent: '<BOARD-MAC-ADDRESS>',
-  domain: 'public.vrpc',
+  domain: 'vrpc',
   broker: 'mqtts://vrpc.io:8883'
 })
 

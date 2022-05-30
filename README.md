@@ -43,5 +43,9 @@ Understand how to use it by looking at the examples:
 - [Blink](examples/Blink_WiFi/Blink_WiFi.ino)
 - [LCD Display](examples/LCD_Display_WiFi/LCD_Display_WiFi.ino)
 - [Temperature](examples/Temperature_GSM/Temperature_GSM.ino)
+- [GSM IR-Temperature](examples/Temperature_GSM/Temperature_GSM.ino)
 
 Get all the details by reading the [documentation](docs/api.md).
+
+> This open-source project is professionally managed and supported by
+> [Heisenware GmbH](https://heisenware.com).

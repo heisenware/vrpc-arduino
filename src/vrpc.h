@@ -277,10 +277,10 @@ class VrpcAgent {
    * @tparam T Type of the client class
    * @param netClient A client class following the interface as described
    * [here](https://www.arduino.cc/en/Reference/ClientConstructor)
-   * @param domain [optional, default: `"public.vrpc"`] The domain under which
+   * @param domain [optional, default: `"vrpc"`] The domain under which
    * the agent-provided code is reachable
-   * @param token [optional] Access token as generated using the [VRPC
-   * App](https://app.vrpc.io), or password if own broker is used
+   * @param token [optional] Access token as used by Heisenware GmbH or MQTT
+   * password if own broker is used
    * @param broker [optional, default: `"vrpc.io"`] Address of the MQTT broker
    * @param username [optional] MQTT username (not needed when using the vrpc.io
    * broker)
@@ -292,8 +292,8 @@ class VrpcAgent {
              const String& broker = "vrpc.io",
              const String& username = "") {
     _domain_agent = domain + "/" + VrpcAgent::get_unique_id();
-    _token = token;
-    _username = username;
+    _token = token == "" ? VrpcAgent::get_id_from_compile_date() : token;
+    _username = username == "" ? _domain_agent : username;
     _broker = broker;
     vrpc::client.setClient(netClient);
     vrpc::client.setServer(_broker.c_str(), 1883);
@@ -431,14 +431,19 @@ class VrpcAgent {
     vrpc::client.publish(sender.c_str(), res.c_str());
   }
 
-  static String get_unique_id() {
-#ifdef ARDUINO_ARCH_MEGAAVR
-    String id = "ar-";
+  static String get_id_from_compile_date() {
+    String id;
     for (size_t i = vrpc::compile_date.length() - 1; i > 2; --i) {
       const char x = vrpc::compile_date[i];
       if (x != ' ' && x != ':')
         id += x;
     }
+    return id;
+  }
+
+  static String get_unique_id() {
+#ifdef ARDUINO_ARCH_MEGAAVR
+    String id = "ar-" + VrpcAgent::get_id_from_compile_date();
     return id;
 #else
     String id = "ar";
