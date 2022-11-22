@@ -3,7 +3,7 @@
 ### Required dependencies
 
 - [ArduinoJSON](https://arduinojson.org/?utm_source=meta&utm_medium=library.properties) by Benoit Blanchon
-- [MQTT](https://github.com/256dpi/arduino-mqtt) by Joël Gähwiler
+- [PubSubClient](https://pubsubclient.knolleary.net) by Nick O’Leary
 - [ArduinoUniqueId](https://github.com/ricaun/ArduinoUniqueID) by Luiz Henrique Cassettari
 
 ## Function adaptation macros
