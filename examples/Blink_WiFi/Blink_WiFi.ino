@@ -18,7 +18,10 @@ void ledOff() {
 
 void connect() {
   Serial.print("Connecting WiFi...");
-  while (WiFi.status() != WL_CONNECTED) delay(1000);
+  while (WiFi.status() != WL_CONNECTED) {
+    WiFi.begin(ssid, pass);
+    delay(1000);
+  }
   Serial.println("[OK]");
   agent.connect();
 }
@@ -31,12 +34,12 @@ void setup() {
   agent.begin(wifi);
 
   connect();
-
 }
 
 void loop() {
   agent.loop();
-  if (!agent.connected()) connect();
+  if (!agent.connected())
+    connect();
 }
 
 VRPC_GLOBAL_FUNCTION(void, ledOn);

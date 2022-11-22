@@ -50,10 +50,12 @@ void clearRow(int row) {
 }
 
 void connect() {
-  lcd.setCursor(0, 1);
-  lcd.print("Connect WiFi... ");
-  while (WiFi.status() != WL_CONNECTED)
+  while (WiFi.status() != WL_CONNECTED) {
+    lcd.setCursor(0, 1);
+    lcd.print("Connect WiFi... ");
+    WiFi.begin(ssid, pass);
     delay(1000);
+  }
   lcd.print("OK");
   delay(1000);
   lcd.setCursor(0, 1);
